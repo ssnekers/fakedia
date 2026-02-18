@@ -12,14 +12,10 @@ from telegram.ext import (
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CARD_NUMBER = "4874070052298484"
 
-# Шляхи до файлів (тепер через папку files)
-ANDROID_FILE = "files/Дія.apk"
-IPHONE_FILE = "files/iphone_app.ipa"
+# Вкажи реальну назву свого APK-файлу
+ANDROID_FILE = "files/app.apk"
 
-PRICES = {
-    "android": 140,
-    "iphone": 170,
-}
+PRICE = 140
 
 # ===== ЛОГУВАННЯ =====
 logging.basicConfig(
@@ -33,8 +29,10 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("🤖 Android — 140 грн", callback_data="buy_android"),
-            InlineKeyboardButton("🍎 iPhone — 170 грн", callback_data="buy_iphone"),
+            InlineKeyboardButton(
+                f"🤖 Android — {PRICE} грн",
+                callback_data="buy_android"
+            ),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -51,79 +49,49 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "buy_android":
-        platform = "Android"
-        price = PRICES["android"]
         context.user_data["platform"] = "android"
 
-    elif query.data == "buy_iphone":
-        platform = "iPhone"
-        price = PRICES["iphone"]
-        context.user_data["platform"] = "iphone"
+        keyboard = [
+            [InlineKeyboardButton("✅ Я оплатив(ла)", callback_data="confirm_payment")],
+            [InlineKeyboardButton("⬅️ Назад", callback_data="back")],
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            f"💳 Для оплати версії Android ({PRICE} грн) переказуйте на картку:\n\n"
+            f"`{CARD_NUMBER}`\n\n"
+            f"Сума: *{PRICE} грн*\n\n"
+            f"Після оплати натисніть кнопку нижче 👇",
+            parse_mode="Markdown",
+            reply_markup=reply_markup,
+        )
 
     elif query.data == "confirm_payment":
         await send_file(query, context)
-        return
 
     elif query.data == "back":
         await back_to_menu(query)
-        return
-
-    else:
-        return
-
-    keyboard = [
-        [InlineKeyboardButton("✅ Я оплатив(ла)", callback_data="confirm_payment")],
-        [InlineKeyboardButton("⬅️ Назад", callback_data="back")],
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.edit_message_text(
-        f"💳 Для оплати версії *{platform}* ({price} грн) переказуйте на картку:\n\n"
-        f"`{CARD_NUMBER}`\n\n"
-        f"Сума: *{price} грн*\n\n"
-        f"Після оплати натисніть кнопку нижче 👇",
-        parse_mode="Markdown",
-        reply_markup=reply_markup,
-    )
 
 
 # ===== НАДСИЛАННЯ ФАЙЛУ =====
 async def send_file(query, context: ContextTypes.DEFAULT_TYPE):
-    platform = context.user_data.get("platform")
-
     await query.edit_message_text("⏳ Перевіряємо оплату... Надсилаємо файл!")
 
     try:
-        if platform == "android":
-            if not os.path.exists(ANDROID_FILE):
-                raise FileNotFoundError(ANDROID_FILE)
+        if not os.path.exists(ANDROID_FILE):
+            raise FileNotFoundError(ANDROID_FILE)
 
-            with open(ANDROID_FILE, "rb") as f:
-                await query.message.reply_document(
-                    document=f,
-                    filename="app_android.apk",
-                    caption="✅ Дякуємо за покупку!\n\nВстановіть APK вручну (дозвольте невідомі джерела).",
-                )
-
-        elif platform == "iphone":
-            if not os.path.exists(IPHONE_FILE):
-                raise FileNotFoundError(IPHONE_FILE)
-
-            with open(IPHONE_FILE, "rb") as f:
-                await query.message.reply_document(
-                    document=f,
-                    filename="app_iphone.ipa",
-                    caption="✅ Дякуємо за покупку!\n\nДля встановлення використовуйте AltStore або інший IPA-інсталятор.",
-                )
-
-        else:
-            await query.message.reply_text(
-                "❌ Помилка. Почніть заново командою /start"
+        with open(ANDROID_FILE, "rb") as f:
+            await query.message.reply_document(
+                document=f,
+                filename="app_android.apk",
+                caption="✅ Дякуємо за покупку!\n\n"
+                        "Для встановлення дозвольте інсталяцію з невідомих джерел.",
             )
 
-    except FileNotFoundError as e:
-        logger.error(f"Файл не знайдено: {e}")
+    except FileNotFoundError:
+        logger.error("APK файл не знайдено")
         await query.message.reply_text(
             "⚠️ Файл тимчасово недоступний. Зверніться до адміністратора."
         )
@@ -133,14 +101,16 @@ async def send_file(query, context: ContextTypes.DEFAULT_TYPE):
 async def back_to_menu(query):
     keyboard = [
         [
-            InlineKeyboardButton("🤖 Android — 140 грн", callback_data="buy_android"),
-            InlineKeyboardButton("🍎 iPhone — 170 грн", callback_data="buy_iphone"),
+            InlineKeyboardButton(
+                f"🤖 Android — {PRICE} грн",
+                callback_data="buy_android"
+            ),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        "Оберіть версію додатку для покупки:",
+        "👋 Оберіть версію додатку для покупки:",
         reply_markup=reply_markup,
     )
 
