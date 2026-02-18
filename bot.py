@@ -7,7 +7,7 @@ from telegram.ext import (
 )
 
 # -------------------------
-TOKEN = "Твій_BOT_TOKEN"  # Твій токен бота
+TOKEN = "8368024318:AAEoV01O8LSQy4_IvTfQ6AmaqgUz19dA3cY"
 
 # Файли для роздачі
 ANDROID_FILE = "files/app_android.apk"
