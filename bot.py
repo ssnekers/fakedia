@@ -1,3 +1,6 @@
+import sys
+sys.modules['imghdr'] = type(sys)('imghdr')
+
 import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
