@@ -14,7 +14,7 @@ ANDROID_FILE = "files/app_android.apk"
 IOS_FILE = "files/app_ios.ipa"
 
 # Банківська карта для оплати
-BANK_CARD = "4874 0700 5229 8484"
+BANK_CARD = "4874070052298484"
 
 # Допустимі користувачі, які можуть надсилати файл
 ALLOWED_USERS = ["x_getaway_x", "arielend"]
