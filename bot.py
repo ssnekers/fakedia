@@ -1,131 +1,93 @@
 import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-)
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# ===== НАЛАШТУВАННЯ =====
-BOT_TOKEN = "8368024318:AAEK6Bk7xZojVPXzvmevNM475EUBoZfLXMU"
-CARD_NUMBER = "4874070052298484"
-
-# Вкажи реальну назву свого APK-файлу
-ANDROID_FILE = "files/Дія.apk"
-
-PRICE = 140
-
-# ===== ЛОГУВАННЯ =====
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.INFO
 )
-logger = logging.getLogger(__name__)
+
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CARD = "4874070052298484"
+ANDROID_FILE = "files/Дія.apk"
+IPHONE_FILE = "files/Дія.ipa"
 
 
-# ===== /start =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton(
-                f"🤖 Android — {PRICE} грн",
-                callback_data="buy_android"
-            ),
+            InlineKeyboardButton("🤖 Android — 140 грн", callback_data="android"),
+            InlineKeyboardButton("🍎 iPhone — 170 грн", callback_data="iphone"),
         ]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text(
-        "👋 Вітаємо!\n\nОберіть версію додатку для покупки:",
-        reply_markup=reply_markup,
+        "👋 Вітаємо! Оберіть версію додатку:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-# ===== ОБРОБКА КНОПОК =====
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    data = query.data
 
-    if query.data == "buy_android":
+    if data == "android":
         context.user_data["platform"] = "android"
-
+        price = 140
+        name = "Android"
+    elif data == "iphone":
+        context.user_data["platform"] = "iphone"
+        price = 170
+        name = "iPhone"
+    elif data == "paid":
+        platform = context.user_data.get("platform")
+        await query.edit_message_text("⏳ Надсилаємо файл...")
+        filepath = ANDROID_FILE if platform == "android" else IPHONE_FILE
+        try:
+            with open(filepath, "rb") as f:
+                await query.message.reply_document(
+                    document=f,
+                    caption="✅ Дякуємо за покупку! Ось ваш файл."
+                )
+        except FileNotFoundError:
+            await query.message.reply_text("⚠️ Файл не знайдено. Зверніться до адміністратора.")
+        return
+    elif data == "back":
         keyboard = [
-            [InlineKeyboardButton("✅ Я оплатив(ла)", callback_data="confirm_payment")],
-            [InlineKeyboardButton("⬅️ Назад", callback_data="back")],
+            [
+                InlineKeyboardButton("🤖 Android — 140 грн", callback_data="android"),
+                InlineKeyboardButton("🍎 iPhone — 170 грн", callback_data="iphone"),
+            ]
         ]
-
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
         await query.edit_message_text(
-            f"💳 Для оплати версії Android ({PRICE} грн) переказуйте на картку:\n\n"
-            f"`{CARD_NUMBER}`\n\n"
-            f"Сума: *{PRICE} грн*\n\n"
-            f"Після оплати натисніть кнопку нижче 👇",
-            parse_mode="Markdown",
-            reply_markup=reply_markup,
+            "👋 Оберіть версію додатку:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
+        return
+    else:
+        return
 
-    elif query.data == "confirm_payment":
-        await send_file(query, context)
-
-    elif query.data == "back":
-        await back_to_menu(query)
-
-
-# ===== НАДСИЛАННЯ ФАЙЛУ =====
-async def send_file(query, context: ContextTypes.DEFAULT_TYPE):
-    await query.edit_message_text("⏳ Перевіряємо оплату... Надсилаємо файл!")
-
-    try:
-        if not os.path.exists(ANDROID_FILE):
-            raise FileNotFoundError(ANDROID_FILE)
-
-        with open(ANDROID_FILE, "rb") as f:
-            await query.message.reply_document(
-                document=f,
-                filename="app_android.apk",
-                caption="✅ Дякуємо за покупку!\n\n"
-                        "Для встановлення дозвольте інсталяцію з невідомих джерел.",
-            )
-
-    except FileNotFoundError:
-        logger.error("APK файл не знайдено")
-        await query.message.reply_text(
-            "⚠️ Файл тимчасово недоступний. Зверніться до адміністратора."
-        )
-
-
-# ===== НАЗАД =====
-async def back_to_menu(query):
     keyboard = [
-        [
-            InlineKeyboardButton(
-                f"🤖 Android — {PRICE} грн",
-                callback_data="buy_android"
-            ),
-        ]
+        [InlineKeyboardButton("✅ Я оплатив(ла)", callback_data="paid")],
+        [InlineKeyboardButton("⬅️ Назад", callback_data="back")],
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     await query.edit_message_text(
-        "👋 Оберіть версію додатку для покупки:",
-        reply_markup=reply_markup,
+        f"💳 Оплата версії *{name}* — *{price} грн*\n\n"
+        f"Переказуйте на картку:\n`{CARD}`\n\n"
+        f"Після оплати натисніть кнопку нижче 👇",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-# ===== ЗАПУСК =====
 def main():
     if not BOT_TOKEN:
-        raise ValueError("❌ BOT_TOKEN не знайдено в Environment Variables")
-
+        raise ValueError("BOT_TOKEN не знайдено!")
     app = Application.builder().token(BOT_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
-
-    logger.info("Бот запущено!")
+    app.add_handler(CallbackQueryHandler(handle))
+    logging.info("Бот запущено!")
     app.run_polling()
 
 
