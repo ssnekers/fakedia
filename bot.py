@@ -7,27 +7,30 @@ from telegram.ext import (
 )
 
 # -------------------------
-TOKEN = "8368024318:AAEoV01O8LSQy4_IvTfQ6AmaqgUz19dA3cY"
+TOKEN = "Твій_BOT_TOKEN"  # Твій токен бота
 
 # Файли для роздачі
 ANDROID_FILE = "files/app_android.apk"
 IOS_FILE = "files/app_ios.ipa"
 
 # Банківська карта для оплати
-BANK_CARD = "UA1234 5678 9012 3456"
+BANK_CARD = "4874 0700 5229 8484"
 
 # Допустимі користувачі, які можуть надсилати файл
 ALLOWED_USERS = ["x_getaway_x", "arielend"]
 # -------------------------
 
-# Команда /start
+# /start
 async def start(update: Update, context: CallbackContext):
     keyboard = [
-        [InlineKeyboardButton("Android", callback_data="choose_android")],
-        [InlineKeyboardButton("iOS", callback_data="choose_ios")],
+        [InlineKeyboardButton("📱 Android – 140₴", callback_data="choose_android")],
+        [InlineKeyboardButton("🍎 iOS – 170₴", callback_data="choose_ios")],
     ]
     markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Виберіть платформу:", reply_markup=markup)
+    await update.message.reply_text(
+        "👋 Ласкаво просимо! Виберіть платформу, яку хочете придбати:", 
+        reply_markup=markup
+    )
 
 # Обробка вибору платформи
 async def choose_platform(update: Update, context: CallbackContext):
@@ -37,19 +40,29 @@ async def choose_platform(update: Update, context: CallbackContext):
     if query.data == "choose_android":
         context.user_data["file"] = ANDROID_FILE
         platform = "Android"
+        price = "140₴"
     else:
         context.user_data["file"] = IOS_FILE
         platform = "iOS"
+        price = "170₴"
 
     keyboard = [
-        [InlineKeyboardButton("Я оплатив", callback_data="paid")],
-        [InlineKeyboardButton("Відмінити", callback_data="cancel")],
+        [InlineKeyboardButton("✅ Я оплатив", callback_data="paid")],
+        [InlineKeyboardButton("❌ Відмінити", callback_data="cancel")],
     ]
     markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        text=f"Ви обрали {platform}.\n\nОплата на картку:\n{BANK_CARD}",
-        reply_markup=markup
+        text=(
+            f"💳 Ви обрали *{platform}*.\n\n"
+            f"Будь ласка, перекажіть оплату на картку:\n"
+            f"*{BANK_CARD}*\n\n"
+            f"Сума: *{price}*\n\n"
+            "Після оплати натисніть кнопку ✅ 'Я оплатив', "
+            "або ❌ 'Відмінити', якщо передумали."
+        ),
+        reply_markup=markup,
+        parse_mode="Markdown"
     )
 
 # Обробка кнопок "Я оплатив" / "Відмінити"
@@ -58,15 +71,18 @@ async def payment_buttons(update: Update, context: CallbackContext):
     await query.answer()
 
     if query.data == "paid":
-        await query.edit_message_text("Очікуйте, перевірка оплати...")
+        await query.edit_message_text(
+            "⏳ Очікуйте, йде перевірка оплати...\n"
+            "Наш менеджер перевірить вашу оплату і надішле файл найближчим часом."
+        )
     elif query.data == "cancel":
-        await query.edit_message_text("Оплата скасована.")
+        await query.edit_message_text("❌ Оплата скасована. Ви можете зробити спробу пізніше.")
 
 # Команда для клієнта: надіслати файл після перевірки
 async def send_file(update: Update, context: CallbackContext):
     user_name = update.message.from_user.username
     if user_name not in ALLOWED_USERS:
-        await update.message.reply_text("Ви не маєте прав для цієї команди!")
+        await update.message.reply_text("⛔ Ви не маєте прав для цієї команди!")
         return
 
     try:
@@ -78,13 +94,13 @@ async def send_file(update: Update, context: CallbackContext):
         elif file_type.lower() == "ios":
             file_path = IOS_FILE
         else:
-            await update.message.reply_text("Використання: /send_file @username android|ios")
+            await update.message.reply_text("❌ Використання: /send_file @username android|ios")
             return
 
         await context.bot.send_document(chat_id=target_username, document=open(file_path, "rb"))
-        await update.message.reply_text(f"Файл надіслано користувачу {target_username}")
+        await update.message.reply_text(f"✅ Файл успішно надіслано користувачу {target_username}")
     except:
-        await update.message.reply_text("Помилка. Використання: /send_file @username android|ios")
+        await update.message.reply_text("❌ Помилка. Використання: /send_file @username android|ios")
 
 # -------------------------
 # Налаштування бота
