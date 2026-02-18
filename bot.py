@@ -1,101 +1,99 @@
-import sys
-import types
-
-# Фікс для Python 3.13+ (про всяк випадок)
-imghdr = types.ModuleType("imghdr")
-imghdr.what = lambda *a, **kw: None
-sys.modules["imghdr"] = imghdr
-
-import os
-import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    CallbackContext,
 )
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CARD = "4874070052298484"
-ANDROID_FILE = "files/Дія.apk"
+# -------------------------
+TOKEN = "Твій_BOT_TOKEN"  # Твій токен бота
 
+# Файли для роздачі
+ANDROID_FILE = "files/app_android.apk"
+IOS_FILE = "files/app_ios.ipa"
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[
-        InlineKeyboardButton("🤖 Android — 140 грн", callback_data="android"),
-        InlineKeyboardButton("🍎 iPhone", callback_data="iphone"),
-    ]]
-    await update.message.reply_text(
-        "👋 Вітаємо! Оберіть версію додатку:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+# Банківська карта для оплати
+BANK_CARD = "UA1234 5678 9012 3456"
 
+# Допустимі користувачі, які можуть надсилати файл
+ALLOWED_USERS = ["x_getaway_x", "arielend"]
+# -------------------------
 
-async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Команда /start
+async def start(update: Update, context: CallbackContext):
+    keyboard = [
+        [InlineKeyboardButton("Android", callback_data="choose_android")],
+        [InlineKeyboardButton("iOS", callback_data="choose_ios")],
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Виберіть платформу:", reply_markup=markup)
+
+# Обробка вибору платформи
+async def choose_platform(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
-    data = query.data
 
-    # ===== ANDROID =====
-    if data == "android":
-        context.user_data["platform"] = "android"
-        keyboard = [
-            [InlineKeyboardButton("✅ Я оплатив(ла)", callback_data="paid")],
-            [InlineKeyboardButton("⬅️ Назад", callback_data="back")],
-        ]
-        await query.edit_message_text(
-            f"💳 Оплата версії *Android* — *140 грн*\n\n"
-            f"Переказуйте на картку:\n`{CARD}`\n\n"
-            f"Після оплати натисніть кнопку нижче 👇",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+    if query.data == "choose_android":
+        context.user_data["file"] = ANDROID_FILE
+        platform = "Android"
+    else:
+        context.user_data["file"] = IOS_FILE
+        platform = "iOS"
 
-    # ===== IPHONE =====
-    elif data == "iphone":
-        await query.edit_message_text(
-            "📱 Версія для iPhone доступна через бота:\n\n👉 @funpapers_bot"
-        )
+    keyboard = [
+        [InlineKeyboardButton("Я оплатив", callback_data="paid")],
+        [InlineKeyboardButton("Відмінити", callback_data="cancel")],
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
 
-    # ===== PAID =====
-    elif data == "paid":
-        await query.edit_message_text("⏳ Надсилаємо файл...")
-        try:
-            with open(ANDROID_FILE, "rb") as f:
-                await query.message.reply_document(
-                    document=f,
-                    caption="✅ Дякуємо за покупку! Ось ваш файл."
-                )
-        except FileNotFoundError:
-            await query.message.reply_text(
-                "⚠️ Файл не знайдено. Зверніться до адміністратора."
-            )
+    await query.edit_message_text(
+        text=f"Ви обрали {platform}.\n\nОплата на картку:\n{BANK_CARD}",
+        reply_markup=markup
+    )
 
-    # ===== BACK =====
-    elif data == "back":
-        keyboard = [[
-            InlineKeyboardButton("🤖 Android — 140 грн", callback_data="android"),
-            InlineKeyboardButton("🍎 iPhone", callback_data="iphone"),
-        ]]
-        await query.edit_message_text(
-            "👋 Оберіть версію додатку:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+# Обробка кнопок "Я оплатив" / "Відмінити"
+async def payment_buttons(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
 
+    if query.data == "paid":
+        await query.edit_message_text("Очікуйте, перевірка оплати...")
+    elif query.data == "cancel":
+        await query.edit_message_text("Оплата скасована.")
 
-def main():
-    if not BOT_TOKEN:
-        raise ValueError("BOT_TOKEN не знайдено!")
+# Команда для клієнта: надіслати файл після перевірки
+async def send_file(update: Update, context: CallbackContext):
+    user_name = update.message.from_user.username
+    if user_name not in ALLOWED_USERS:
+        await update.message.reply_text("Ви не маєте прав для цієї команди!")
+        return
 
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle))
+    try:
+        target_username = context.args[0]  # username користувача
+        file_type = context.args[1]       # android / ios
 
-    logging.info("Бот запущено!")
-    app.run_polling()
+        if file_type.lower() == "android":
+            file_path = ANDROID_FILE
+        elif file_type.lower() == "ios":
+            file_path = IOS_FILE
+        else:
+            await update.message.reply_text("Використання: /send_file @username android|ios")
+            return
 
+        await context.bot.send_document(chat_id=target_username, document=open(file_path, "rb"))
+        await update.message.reply_text(f"Файл надіслано користувачу {target_username}")
+    except:
+        await update.message.reply_text("Помилка. Використання: /send_file @username android|ios")
 
-if __name__ == "__main__":
-    main()
+# -------------------------
+# Налаштування бота
+app = ApplicationBuilder().token(TOKEN).build()
 
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CallbackQueryHandler(choose_platform, pattern="choose_"))
+app.add_handler(CallbackQueryHandler(payment_buttons, pattern="^(paid|cancel)$"))
+app.add_handler(CommandHandler("send_file", send_file))
+
+# Запуск бота
+app.run_polling()
