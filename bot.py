@@ -1,6 +1,7 @@
 import sys
 import types
-# Фікс для Python 3.13+ (видалили модуль imghdr)
+
+# Фікс для Python 3.13+ (про всяк випадок)
 imghdr = types.ModuleType("imghdr")
 imghdr.what = lambda *a, **kw: None
 sys.modules["imghdr"] = imghdr
@@ -18,13 +19,12 @@ logging.basicConfig(
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CARD = "4874070052298484"
 ANDROID_FILE = "files/Дія.apk"
-IPHONE_FILE = "files/Дія.ipa"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[
         InlineKeyboardButton("🤖 Android — 140 грн", callback_data="android"),
-        InlineKeyboardButton("🍎 iPhone — 170 грн", callback_data="iphone"),
+        InlineKeyboardButton("🍎 iPhone", callback_data="iphone"),
     ]]
     await update.message.reply_text(
         "👋 Вітаємо! Оберіть версію додатку:",
@@ -37,28 +37,32 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
 
-    if data in ("android", "iphone"):
-        context.user_data["platform"] = data
-        price = 140 if data == "android" else 170
-        name = "Android" if data == "android" else "iPhone"
+    # ===== ANDROID =====
+    if data == "android":
+        context.user_data["platform"] = "android"
         keyboard = [
             [InlineKeyboardButton("✅ Я оплатив(ла)", callback_data="paid")],
             [InlineKeyboardButton("⬅️ Назад", callback_data="back")],
         ]
         await query.edit_message_text(
-            f"💳 Оплата версії *{name}* — *{price} грн*\n\n"
+            f"💳 Оплата версії *Android* — *140 грн*\n\n"
             f"Переказуйте на картку:\n`{CARD}`\n\n"
             f"Після оплати натисніть кнопку нижче 👇",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
+    # ===== IPHONE =====
+    elif data == "iphone":
+        await query.edit_message_text(
+            "📱 Версія для iPhone доступна через бота:\n\n👉 @funpapers_bot"
+        )
+
+    # ===== PAID =====
     elif data == "paid":
-        platform = context.user_data.get("platform", "android")
         await query.edit_message_text("⏳ Надсилаємо файл...")
-        filepath = ANDROID_FILE if platform == "android" else IPHONE_FILE
         try:
-            with open(filepath, "rb") as f:
+            with open(ANDROID_FILE, "rb") as f:
                 await query.message.reply_document(
                     document=f,
                     caption="✅ Дякуємо за покупку! Ось ваш файл."
@@ -68,10 +72,11 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "⚠️ Файл не знайдено. Зверніться до адміністратора."
             )
 
+    # ===== BACK =====
     elif data == "back":
         keyboard = [[
             InlineKeyboardButton("🤖 Android — 140 грн", callback_data="android"),
-            InlineKeyboardButton("🍎 iPhone — 170 грн", callback_data="iphone"),
+            InlineKeyboardButton("🍎 iPhone", callback_data="iphone"),
         ]]
         await query.edit_message_text(
             "👋 Оберіть версію додатку:",
@@ -81,13 +86,16 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not BOT_TOKEN:
-        raise ValueError("BOT_TOKEN не знайдено в Environment Variables!")
+        raise ValueError("BOT_TOKEN не знайдено!")
+
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle))
+
     logging.info("Бот запущено!")
     app.run_polling()
 
 
 if __name__ == "__main__":
     main()
+
