@@ -13,7 +13,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CARD_NUMBER = "4874070052298484"
 
 # Шляхи до файлів (тепер через папку files)
-ANDROID_FILE = "files/android_app.apk"
+ANDROID_FILE = "files/Дія.apk"
 IPHONE_FILE = "files/iphone_app.ipa"
 
 PRICES = {
