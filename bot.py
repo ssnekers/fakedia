@@ -1,3 +1,4 @@
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -7,7 +8,7 @@ from telegram.ext import (
 )
 
 # -------------------------
-TOKEN = "8368024318:AAEoV01O8LSQy4_IvTfQ6AmaqgUz19dA3cY"
+TOKEN = "Твій_BOT_TOKEN"  # Вставте свій токен бота
 
 # Файли для роздачі
 ANDROID_FILE = "files/app_android.apk"
@@ -20,7 +21,7 @@ BANK_CARD = "4874 0700 5229 8484"
 ALLOWED_USERS = ["x_getaway_x", "arielend"]
 # -------------------------
 
-# /start
+# Команда /start
 async def start(update: Update, context: CallbackContext):
     keyboard = [
         [InlineKeyboardButton("📱 Android – 140₴", callback_data="choose_android")],
@@ -59,8 +60,8 @@ async def choose_platform(update: Update, context: CallbackContext):
             f"{emoji} Ви обрали *{platform}*.\n\n"
             f"💳 Оплата на картку:\n*{BANK_CARD}*\n\n"
             f"💰 Сума: *{price}*\n\n"
-            "⚠️ ВАЖЛИВО: Після оплати обов'язково надішліть у чат свій Telegram-юзернейм, "
-            "щоб ми могли підтвердити оплату.\n\n"
+            "⚠️ ОБОВ'ЯЗКОВО надішліть свій Telegram-юзернейм у чат, "
+            "щоб підтвердити оплату.\n\n"
             "Після цього натисніть кнопку ✅ 'Я оплатив', "
             "або ❌ 'Відмінити', якщо передумали."
         ),
@@ -105,6 +106,12 @@ async def send_file(update: Update, context: CallbackContext):
             await update.message.reply_text("❌ Використання: /send_file @username android|ios")
             return
 
+        # Перевірка наявності файлу
+        if not os.path.isfile(file_path):
+            await update.message.reply_text(f"❌ Файл {file_path} не знайдено на сервері!")
+            return
+
+        # Відправка файлу
         await context.bot.send_document(chat_id=target_username, document=open(file_path, "rb"))
         await update.message.reply_text(f"✅ {emoji} Файл успішно надіслано користувачу {target_username}")
     except Exception as e:
