@@ -9,7 +9,7 @@ from telegram.ext import (
 )
 
 # ===== НАЛАШТУВАННЯ =====
-BOT_TOKEN = os.getenv(8368024318:AAEK6Bk7xZojVPXzvmevNM475EUBoZfLXMU)
+BOT_TOKEN = os.getenv"8368024318:AAEK6Bk7xZojVPXzvmevNM475EUBoZfLXMU"
 CARD_NUMBER = "4874070052298484"
 
 # Вкажи реальну назву свого APK-файлу
