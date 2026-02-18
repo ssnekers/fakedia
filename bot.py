@@ -1,7 +1,7 @@
 import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -14,44 +14,42 @@ ANDROID_FILE = "files/Дія.apk"
 IPHONE_FILE = "files/Дія.ipa"
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def start(update: Update, context: CallbackContext):
     keyboard = [
         [
             InlineKeyboardButton("🤖 Android — 140 грн", callback_data="android"),
             InlineKeyboardButton("🍎 iPhone — 170 грн", callback_data="iphone"),
         ]
     ]
-    await update.message.reply_text(
+    update.message.reply_text(
         "👋 Вітаємо! Оберіть версію додатку:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def handle(update: Update, context: CallbackContext):
     query = update.callback_query
-    await query.answer()
+    query.answer()
     data = query.data
 
     if data == "android":
         context.user_data["platform"] = "android"
-        price = 140
-        name = "Android"
+        price, name = 140, "Android"
     elif data == "iphone":
         context.user_data["platform"] = "iphone"
-        price = 170
-        name = "iPhone"
+        price, name = 170, "iPhone"
     elif data == "paid":
         platform = context.user_data.get("platform")
-        await query.edit_message_text("⏳ Надсилаємо файл...")
+        query.edit_message_text("⏳ Надсилаємо файл...")
         filepath = ANDROID_FILE if platform == "android" else IPHONE_FILE
         try:
             with open(filepath, "rb") as f:
-                await query.message.reply_document(
+                query.message.reply_document(
                     document=f,
                     caption="✅ Дякуємо за покупку! Ось ваш файл."
                 )
         except FileNotFoundError:
-            await query.message.reply_text("⚠️ Файл не знайдено. Зверніться до адміністратора.")
+            query.message.reply_text("⚠️ Файл не знайдено. Зверніться до адміністратора.")
         return
     elif data == "back":
         keyboard = [
@@ -60,7 +58,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("🍎 iPhone — 170 грн", callback_data="iphone"),
             ]
         ]
-        await query.edit_message_text(
+        query.edit_message_text(
             "👋 Оберіть версію додатку:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
@@ -72,7 +70,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("✅ Я оплатив(ла)", callback_data="paid")],
         [InlineKeyboardButton("⬅️ Назад", callback_data="back")],
     ]
-    await query.edit_message_text(
+    query.edit_message_text(
         f"💳 Оплата версії *{name}* — *{price} грн*\n\n"
         f"Переказуйте на картку:\n`{CARD}`\n\n"
         f"Після оплати натисніть кнопку нижче 👇",
@@ -84,11 +82,16 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN не знайдено!")
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle))
+
+    updater = Updater(BOT_TOKEN)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CallbackQueryHandler(handle))
+
     logging.info("Бот запущено!")
-    app.run_polling()
+    updater.start_polling()
+    updater.idle()
 
 
 if __name__ == "__main__":
