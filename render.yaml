@@ -1,7 +1,7 @@
 services:
   - type: web
     name: telegram-bot
-    runtime: runtime: python-3.13.12
+    runtime: python-3.13.12
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
