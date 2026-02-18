@@ -13,7 +13,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CARD_NUMBER = "4874070052298484"
 
 # Вкажи реальну назву свого APK-файлу
-ANDROID_FILE = "files/app.apk"
+ANDROID_FILE = "Дія.apk"
 
 PRICE = 140
 
