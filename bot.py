@@ -13,7 +13,7 @@ BOT_TOKEN = "8368024318:AAEK6Bk7xZojVPXzvmevNM475EUBoZfLXMU"
 CARD_NUMBER = "4874070052298484"
 
 # Вкажи реальну назву свого APK-файлу
-ANDROID_FILE = "Дія.apk"
+ANDROID_FILE = "files/Дія.apk"
 
 PRICE = 140
 
