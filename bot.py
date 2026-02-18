@@ -20,7 +20,7 @@ BANK_CARD = "4874 0700 5229 8484"
 ALLOWED_USERS = ["x_getaway_x", "arielend"]
 # -------------------------
 
-# /start
+# Команда /start
 async def start(update: Update, context: CallbackContext):
     keyboard = [
         [InlineKeyboardButton("📱 Android – 140₴", callback_data="choose_android")],
@@ -28,7 +28,7 @@ async def start(update: Update, context: CallbackContext):
     ]
     markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        "👋 Ласкаво просимо! Виберіть платформу, яку хочете придбати:", 
+        "👋 Ласкаво просимо! Виберіть платформу для покупки:",
         reply_markup=markup
     )
 
@@ -41,10 +41,12 @@ async def choose_platform(update: Update, context: CallbackContext):
         context.user_data["file"] = ANDROID_FILE
         platform = "Android"
         price = "140₴"
+        emoji = "📱"
     else:
         context.user_data["file"] = IOS_FILE
         platform = "iOS"
         price = "170₴"
+        emoji = "🍎"
 
     keyboard = [
         [InlineKeyboardButton("✅ Я оплатив", callback_data="paid")],
@@ -54,10 +56,9 @@ async def choose_platform(update: Update, context: CallbackContext):
 
     await query.edit_message_text(
         text=(
-            f"💳 Ви обрали *{platform}*.\n\n"
-            f"Будь ласка, перекажіть оплату на картку:\n"
-            f"*{BANK_CARD}*\n\n"
-            f"Сума: *{price}*\n\n"
+            f"{emoji} Ви обрали *{platform}*.\n\n"
+            f"💳 Оплата на картку:\n*{BANK_CARD}*\n\n"
+            f"💰 Сума: *{price}*\n\n"
             "Після оплати натисніть кнопку ✅ 'Я оплатив', "
             "або ❌ 'Відмінити', якщо передумали."
         ),
@@ -72,13 +73,16 @@ async def payment_buttons(update: Update, context: CallbackContext):
 
     if query.data == "paid":
         await query.edit_message_text(
-            "⏳ Очікуйте, йде перевірка оплати...\n"
-            "Наш менеджер перевірить вашу оплату і надішле файл найближчим часом."
+            "⏳ *Очікуйте, йде перевірка оплати...*\n"
+            "Наш менеджер перевірить вашу оплату і надішле файл найближчим часом.",
+            parse_mode="Markdown"
         )
     elif query.data == "cancel":
-        await query.edit_message_text("❌ Оплата скасована. Ви можете зробити спробу пізніше.")
+        await query.edit_message_text(
+            "❌ Оплата скасована. Ви можете спробувати пізніше."
+        )
 
-# Команда для клієнта: надіслати файл після перевірки
+# Команда для клієнта: надсилання файлу після перевірки
 async def send_file(update: Update, context: CallbackContext):
     user_name = update.message.from_user.username
     if user_name not in ALLOWED_USERS:
@@ -87,20 +91,22 @@ async def send_file(update: Update, context: CallbackContext):
 
     try:
         target_username = context.args[0]  # username користувача
-        file_type = context.args[1]       # android / ios
+        file_type = context.args[1].lower()  # android / ios
 
-        if file_type.lower() == "android":
+        if file_type == "android":
             file_path = ANDROID_FILE
-        elif file_type.lower() == "ios":
+            emoji = "📱"
+        elif file_type == "ios":
             file_path = IOS_FILE
+            emoji = "🍎"
         else:
             await update.message.reply_text("❌ Використання: /send_file @username android|ios")
             return
 
         await context.bot.send_document(chat_id=target_username, document=open(file_path, "rb"))
-        await update.message.reply_text(f"✅ Файл успішно надіслано користувачу {target_username}")
-    except:
-        await update.message.reply_text("❌ Помилка. Використання: /send_file @username android|ios")
+        await update.message.reply_text(f"✅ {emoji} Файл успішно надіслано користувачу {target_username}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Помилка: {e}\nВикористання: /send_file @username android|ios")
 
 # -------------------------
 # Налаштування бота
