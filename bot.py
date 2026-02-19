@@ -1,130 +1,64 @@
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-    CallbackContext,
-)
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# -------------------------
-TOKEN = "8368024318:AAEoV01O8LSQy4_IvTfQ6AmaqgUz19dA3cY"
+TOKEN = os.getenv("BOT_TOKEN")
 
-# Файли для роздачі
-ANDROID_FILE = "files/app_android.apk"
-IOS_FILE = "files/app_ios.ipa"
+users = {}
 
-# Банківська карта для оплати
-BANK_CARD = "4874 0700 5229 8484"
+# /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    username = update.effective_user.username
+    chat_id = update.effective_chat.id
 
-# Допустимі користувачі, які можуть надсилати файл
-ALLOWED_USERS = ["x_getaway_x", "arielend"]
-# -------------------------
-
-# Команда /start
-async def start(update: Update, context: CallbackContext):
-    keyboard = [
-        [InlineKeyboardButton("📱 Android – 140₴", callback_data="choose_android")],
-        [InlineKeyboardButton("🍎 iOS – 170₴", callback_data="choose_ios")],
-    ]
-    markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "👋 Ласкаво просимо! Виберіть платформу для покупки:",
-        reply_markup=markup
-    )
-
-# Обробка вибору платформи
-async def choose_platform(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "choose_android":
-        context.user_data["file"] = ANDROID_FILE
-        platform = "Android"
-        price = "140₴"
-        emoji = "📱"
+    if username:
+        users[username.lower()] = chat_id
+        await update.message.reply_text("✅ Ти зареєстрований!")
     else:
-        context.user_data["file"] = IOS_FILE
-        platform = "iOS"
-        price = "170₴"
-        emoji = "🍎"
+        await update.message.reply_text("❌ Встанови username в Telegram.")
 
-    keyboard = [
-        [InlineKeyboardButton("✅ Я оплатив", callback_data="paid")],
-        [InlineKeyboardButton("❌ Відмінити", callback_data="cancel")],
-    ]
-    markup = InlineKeyboardMarkup(keyboard)
+# /send_file username android|ios
+async def send_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    await query.edit_message_text(
-        text=(
-            f"{emoji} Ви обрали *{platform}*.\n\n"
-            f"💳 Оплата на картку:\n*{BANK_CARD}*\n\n"
-            f"💰 Сума: *{price}*\n\n"
-            "⚠️ ОБОВ'ЯЗКОВО надішліть свій Telegram-юзернейм у чат, "
-            "щоб підтвердити оплату.\n\n"
-            "Після цього натисніть кнопку ✅ 'Я оплатив', "
-            "або ❌ 'Відмінити', якщо передумали."
-        ),
-        reply_markup=markup,
-        parse_mode="Markdown"
-    )
-
-# Обробка кнопок "Я оплатив" / "Відмінити"
-async def payment_buttons(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "paid":
-        await query.edit_message_text(
-            "⏳ *Очікуйте, йде перевірка оплати...*\n"
-            "Наш менеджер перевірить вашу оплату за вашим юзернеймом і надішле файл найближчим часом.",
-            parse_mode="Markdown"
+    if len(context.args) != 2:
+        await update.message.reply_text(
+            "❌ Використання: /send_file username android|ios"
         )
-    elif query.data == "cancel":
-        await query.edit_message_text(
-            "❌ Оплата скасована. Ви можете спробувати пізніше."
-        )
-
-# Команда для клієнта: надсилання файлу після перевірки
-async def send_file(update: Update, context: CallbackContext):
-    user_name = update.message.from_user.username
-    if user_name not in ALLOWED_USERS:
-        await update.message.reply_text("⛔ Ви не маєте прав для цієї команди!")
         return
 
-    try:
-        target_username = context.args[0]  # username користувача
-        file_type = context.args[1].lower()  # android / ios
+    username = context.args[0].replace("@", "").lower()
+    platform = context.args[1].lower()
 
-        if file_type == "android":
-            file_path = ANDROID_FILE
-            emoji = "📱"
-        elif file_type == "ios":
-            file_path = IOS_FILE
-            emoji = "🍎"
-        else:
-            await update.message.reply_text("❌ Використання: /send_file @username android|ios")
-            return
+    if username not in users:
+        await update.message.reply_text("❌ Користувач не натискав /start")
+        return
 
-        # Перевірка наявності файлу
-        if not os.path.isfile(file_path):
-            await update.message.reply_text(f"❌ Файл {file_path} не знайдено на сервері!")
-            return
+    chat_id = users[username]
 
-        # Відправка файлу
-        await context.bot.send_document(chat_id=target_username, document=open(file_path, "rb"))
-        await update.message.reply_text(f"✅ {emoji} Файл успішно надіслано користувачу {target_username}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Помилка: {e}\nВикористання: /send_file @username android|ios")
+    # ANDROID → надсилаємо файл
+    if platform == "android":
+        try:
+            with open("files/android.apk", "rb") as file:
+                await context.bot.send_document(chat_id=chat_id, document=file)
 
-# -------------------------
-# Налаштування бота
-app = ApplicationBuilder().token(TOKEN).build()
+            await update.message.reply_text("✅ Android файл надіслано!")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Помилка: {e}")
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(choose_platform, pattern="choose_"))
-app.add_handler(CallbackQueryHandler(payment_buttons, pattern="^(paid|cancel)$"))
-app.add_handler(CommandHandler("send_file", send_file))
+    # IOS → надсилаємо username бота
+    elif platform == "ios":
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="🍎 Для iPhone переходь сюди:\n👉 @funpapers_bot"
+            )
 
-# Запуск бота
-app.run_polling()
+            await update.message.reply_text("✅ iOS версію надіслано!")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Помилка: {e}")
+
+    else:
+        await update.message.reply_text("❌ Платформа має бути android або ios")
+
+
+app = ApplicationBuild
